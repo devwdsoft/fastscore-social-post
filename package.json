@@ -1,0 +1,24 @@
+{
+  "name": "fastscore-autopost",
+  "version": "1.0.0",
+  "description": "Pick football news from RSS, write a Facebook post with OpenAI, render a branded image and publish it to the Fast Score Facebook Page.",
+  "type": "module",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "once": "node src/index.js --once",
+    "preview": "node src/preview.js",
+    "setup-browser": "npx playwright install chromium"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0",
+    "dotenv": "^16.4.5",
+    "node-cron": "^3.0.3",
+    "openai": "^4.77.0",
+    "playwright": "^1.48.0",
+    "rss-parser": "^3.13.0"
+  }
+}
