@@ -1,5 +1,5 @@
 <?php
-// Copy to public_html/../config/fastscore-config.php (outside the web folder)
+// Copy to public_html/../social/fastscore-config.php (outside the web folder)
 // and fill in the values.
 return [
     // hPanel → Databases → MySQL Databases
