@@ -14,7 +14,9 @@ function cfg(): array
     if ($c === null) {
         $candidates = [
             getenv('FASTSCORE_CONFIG') ?: '',
-            dirname(__DIR__) . '/fastscore-config.php', // preferred: outside the web folder
+            dirname(__DIR__) . '/config/fastscore-config.php', // public_html/../config/ (outside the web folder)
+            dirname(__DIR__) . '/config/config.php',
+            dirname(__DIR__) . '/fastscore-config.php',        // public_html/../
             __DIR__ . '/config.php',                      // fallback: blocked by .htaccess
         ];
         foreach ($candidates as $f) {

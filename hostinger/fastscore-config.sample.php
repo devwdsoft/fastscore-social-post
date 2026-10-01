@@ -1,6 +1,6 @@
 <?php
-// Copy to fastscore-config.php ONE LEVEL ABOVE the subdomain's web folder
-// (e.g. next to public_html, not inside it) and fill in the values.
+// Copy to public_html/../config/fastscore-config.php (outside the web folder)
+// and fill in the values.
 return [
     // hPanel → Databases → MySQL Databases
     'db_host' => 'localhost',
