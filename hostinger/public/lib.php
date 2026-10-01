@@ -12,18 +12,28 @@ function cfg(): array
 {
     static $c = null;
     if ($c === null) {
-        $candidates = [
-            getenv('FASTSCORE_CONFIG') ?: '',
-            dirname(__DIR__) . '/social/fastscore-config.php', // public_html/../social/ (outside the web folder)
-            dirname(__DIR__) . '/social/config.php',
-            dirname(__DIR__) . '/fastscore-config.php',        // public_html/../
-            __DIR__ . '/config.php',                      // fallback: blocked by .htaccess
-        ];
+        // Look for social/fastscore-config.php (or social/config.php) next to this folder
+        // and up to 4 levels above it, so it works whether the subdomain lives in
+        // public_html/ itself or in a sub-folder such as public_html/api/.
+        $candidates = [getenv('FASTSCORE_CONFIG') ?: ''];
+        $dir = __DIR__;
+        for ($i = 0; $i < 5; $i++) {
+            $candidates[] = $dir . '/social/fastscore-config.php';
+            $candidates[] = $dir . '/social/config.php';
+            $parent = dirname($dir);
+            if ($parent === $dir) {
+                break;
+            }
+            $dir = $parent;
+        }
         foreach ($candidates as $f) {
-            if ($f !== '' && is_file($f)) {
+            if ($f !== '' && @is_file($f)) {
                 $c = require $f;
                 break;
             }
+        }
+        if (!is_array($c)) {
+            error_log('[fastscore] config not found, looked in: ' . implode(', ', array_filter($candidates)));
         }
         if (!is_array($c)) {
             json_out(['error' => 'config file not found'], 500);

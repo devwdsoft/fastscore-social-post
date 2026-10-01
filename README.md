@@ -23,7 +23,7 @@ MySQL chỉ nghe ở localhost của Hostinger, không mở ra internet. GitHub 
 
 1. **Database:** vào hPanel → Databases → phpMyAdmin, chọn database của bạn, mở tab **SQL** và dán nội dung `hostinger/schema.sql`, rồi bấm Go.
 2. **Upload code:** dùng File Manager để upload 4 file trong `hostinger/public/` (`index.php`, `telegram.php`, `lib.php`, `.htaccess`) vào thư mục web của subdomain (ví dụ `domains/api.domain-cua-ban.com/public_html/`).
-3. **File cấu hình:** copy `hostinger/fastscore-config.sample.php` thành `fastscore-config.php` và đặt vào thư mục **`social/` nằm cạnh `public_html`** (tức `public_html/../social/fastscore-config.php`, không nằm trong `public_html`), rồi điền:
+3. **File cấu hình:** copy `hostinger/fastscore-config.sample.php` thành `fastscore-config.php` và đặt vào thư mục **`social/` nằm cạnh `public_html`** (tức `public_html/../social/fastscore-config.php`, không nằm trong `public_html`). Code tự tìm thư mục `social/` ở các cấp phía trên, nên subdomain đặt ở `public_html/` hay `public_html/api/` đều được. Sau đó điền:
    - thông tin database;
    - `api_token` và `telegram_webhook_secret`: hai chuỗi ngẫu nhiên dài, khác nhau (tạo ở https://www.random.org/strings hoặc bằng `php -r "echo bin2hex(random_bytes(32));"`);
    - token Telegram và token Facebook Page.
