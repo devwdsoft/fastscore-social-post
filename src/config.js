@@ -6,7 +6,9 @@ import { fileURLToPath } from 'node:url';
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const DATA_DIR = path.join(ROOT, 'data');
 export const OUT_DIR = path.join(DATA_DIR, 'out');
+export const PENDING_DIR = path.join(DATA_DIR, 'pending');
 fs.mkdirSync(OUT_DIR, { recursive: true });
+fs.mkdirSync(PENDING_DIR, { recursive: true });
 
 const env = (k, d = '') => (process.env[k] ?? '').trim() || d;
 const bool = (k, d) => {
@@ -45,6 +47,8 @@ export const config = {
   },
   sourceCredit: bool('SOURCE_CREDIT', true),
   dryRun: bool('DRY_RUN', false),
+  // Shown on Telegram review messages, e.g. how soon an approval is acted on
+  reviewNote: env('REVIEW_NOTE', ''),
   chromiumPath: env('CHROMIUM_PATH'),
   feeds: JSON.parse(fs.readFileSync(path.join(ROOT, 'config', 'feeds.json'), 'utf8')),
 };

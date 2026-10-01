@@ -9,7 +9,7 @@ function load() {
   try {
     return JSON.parse(fs.readFileSync(FILE, 'utf8'));
   } catch {
-    return { seen: {}, pending: {}, history: [] };
+    return { seen: {}, pending: {}, history: [], telegramOffset: 0 };
   }
 }
 
@@ -49,6 +49,11 @@ export const store = {
   },
   addHistory(entry) {
     state.history.push({ ...entry, at: new Date().toISOString() });
+    save();
+  },
+  telegramOffset: () => state.telegramOffset || 0,
+  setTelegramOffset(n) {
+    state.telegramOffset = n;
     save();
   },
   recentTitles: (n = 30) => state.history.slice(-n).map((h) => h.title),

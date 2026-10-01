@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { config, log, needsReview, telegramEnabled, OUT_DIR } from './config.js';
+import { config, log, needsReview, telegramEnabled, OUT_DIR, PENDING_DIR, DATA_DIR } from './config.js';
 import { store } from './store.js';
 import { fetchCandidates } from './feeds.js';
 import { fetchArticle, downloadImage } from './article.js';
@@ -22,7 +22,7 @@ async function publish(p) {
     log(`[dry-run] would post: ${p.title} → ${p.pngFile}`);
     return 'dry-run (not posted)';
   }
-  const res = await postPhoto({ png: fs.readFileSync(p.pngFile), caption: p.caption });
+  const res = await postPhoto({ png: fs.readFileSync(path.resolve(DATA_DIR, p.pngFile)), caption: p.caption });
   const url = postUrl(res);
   store.addHistory({ title: p.title, link: p.link, status: 'posted', fb: url });
   log(`[facebook] posted ${url}`);
@@ -33,8 +33,14 @@ async function publish(p) {
 export async function handleDecision(action, id) {
   const p = store.getPending(id);
   if (!p) return 'This draft is no longer pending.';
+  if (action === 'approve') {
+    const url = await publish(p); // throws on failure, so the draft stays pending
+    store.removePending(id);
+    fs.rmSync(path.resolve(DATA_DIR, p.pngFile), { force: true });
+    return `✅ Posted: ${url}`;
+  }
   store.removePending(id);
-  if (action === 'approve') return `✅ Posted: ${await publish(p)}`;
+  fs.rmSync(path.resolve(DATA_DIR, p.pngFile), { force: true });
   store.addHistory({ title: p.title, link: p.link, status: 'rejected' });
   return `❌ Rejected: ${p.title}`;
 }
@@ -80,7 +86,9 @@ export async function runOnce() {
           store.addHistory({ title: p.title, link: p.link, status: 'held' });
           continue;
         }
-        store.addPending(p);
+        const pendingFile = path.join(PENDING_DIR, `${id}.png`);
+        fs.copyFileSync(pngFile, pendingFile);
+        store.addPending({ ...p, pngFile: path.relative(DATA_DIR, pendingFile) });
         await sendForReview({ ...p, png: fs.readFileSync(pngFile) });
         log('[run] sent to Telegram for review');
       } else {

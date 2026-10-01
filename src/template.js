@@ -12,15 +12,15 @@ export function cardHtml({ card, imageDataUri, brand }) {
   const photo = imageDataUri
     ? `<img src="${imageDataUri}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 20%">`
     : `<div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,#16161A 0 40px,#1B1B20 40px 80px)"></div>
-       <div style="position:absolute;right:-40px;bottom:120px;font-family:Arial,Helvetica,sans-serif;font-weight:900;font-size:340px;line-height:1;color:${accent};opacity:.18">${esc(brandA)}</div>`;
+       <div style="position:absolute;right:-40px;bottom:120px;font-family:Arial,'Liberation Sans',Helvetica,sans-serif;font-weight:900;font-size:340px;line-height:1;color:${accent};opacity:.18">${esc(brandA)}</div>`;
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <style>
 *{box-sizing:border-box}
-body{margin:0;width:1080px;height:1350px;background:#0E0E10;color:#fff;font-family:Arial,Helvetica,sans-serif;overflow:hidden}
-.tag{font-family:Arial,Helvetica,sans-serif;font-weight:700;font-size:28px;letter-spacing:3px;padding:10px 18px}
-.cond{font-family:Arial,Helvetica,sans-serif;font-weight:700}
-.anton{font-family:Arial,Helvetica,sans-serif;font-weight:900}
+body{margin:0;width:1080px;height:1350px;background:#0E0E10;color:#fff;font-family:Arial,'Liberation Sans',Helvetica,sans-serif;overflow:hidden}
+.tag{font-family:Arial,'Liberation Sans',Helvetica,sans-serif;font-weight:700;font-size:28px;letter-spacing:3px;padding:10px 18px}
+.cond{font-family:Arial,'Liberation Sans',Helvetica,sans-serif;font-weight:700}
+.anton{font-family:Arial,'Liberation Sans',Helvetica,sans-serif;font-weight:900}
 </style></head><body>
 <div style="width:1080px;height:1350px;display:flex;flex-direction:column;position:relative">
   <div style="height:720px;position:relative;flex-shrink:0;background:#1C1C20">
@@ -31,7 +31,7 @@ body{margin:0;width:1080px;height:1350px;background:#0E0E10;color:#fff;font-fami
       <div class="tag" style="background:${accent}">${esc(card.label).toUpperCase()}</div>
       ${card.competition ? `<div class="tag" style="background:#fff;color:#0E0E10">${esc(card.competition).toUpperCase()}</div>` : ''}
     </div>
-    <div style="position:absolute;top:40px;right:56px;display:flex;align-items:center;gap:8px;font-family:Arial,Helvetica,sans-serif;font-weight:900;font-size:34px;line-height:1.1;letter-spacing:0.5px;background:${accent};color:#FFFFFF;border:3px solid #FFFFFF;border-radius:10px;padding:5px 18px 5px ${brand.iconDataUri ? 6 : 18}px">${brand.iconDataUri ? `<img src="${brand.iconDataUri}" style="width:36px;height:36px;display:block">` : ''}${esc(logoText)}</div>
+    <div style="position:absolute;top:40px;right:56px;display:flex;align-items:center;gap:8px;font-family:Arial,'Liberation Sans',Helvetica,sans-serif;font-weight:900;font-size:34px;line-height:1.1;letter-spacing:0.5px;background:${accent};color:#FFFFFF;border:3px solid #FFFFFF;border-radius:10px;padding:5px 18px 5px ${brand.iconDataUri ? 6 : 18}px">${brand.iconDataUri ? `<img src="${brand.iconDataUri}" style="width:36px;height:36px;display:block">` : ''}${esc(logoText)}</div>
   </div>
 
   <div id="content" style="height:690px;display:flex;flex-direction:column;gap:28px;padding:0 56px 48px;margin-top:-60px;position:relative;overflow:hidden">

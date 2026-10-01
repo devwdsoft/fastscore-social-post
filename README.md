@@ -12,7 +12,32 @@ Script Node.js chạy theo lịch (cron). Mỗi lần chạy, nó:
 
 Mọi ảnh và bài viết được lưu ở `data/out/` (ảnh `.png` và file `.json` cùng tên). Trạng thái chạy nằm trong `data/state.json`.
 
-## Cài đặt
+## Chạy trên GitHub Actions (khuyên dùng)
+
+Không cần máy chủ. Repo đã có sẵn 2 workflow:
+
+| Workflow | Lịch (giờ UTC) | Việc làm |
+|---|---|---|
+| `Autopost` | `7 */3 * * *`, 3 tiếng một lần (giờ VN: 07:07, 10:07, 13:07…) | Xử lý các nút duyệt đang chờ, rồi lấy tin, viết bài, tạo ảnh và đăng (hoặc gửi Telegram để duyệt) |
+| `Review decisions` | `37 * * * *`, mỗi giờ | Chỉ xử lý nút Approve / Reject trên Telegram. Nếu không có bài chờ duyệt thì dừng ngay |
+
+Bấm Approve trên Telegram thì bài được đăng trong vòng **khoảng 1 giờ** (ở lần chạy kế tiếp), không đăng ngay lập tức.
+
+### Cài đặt
+1. Vào **Settings → Secrets and variables → Actions → Secrets** và thêm:
+   `OPENAI_API_KEY`, `FB_PAGE_ID`, `FB_PAGE_ACCESS_TOKEN`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`.
+2. (Tuỳ chọn) Tab **Variables**: `OPENAI_MODEL`, `MIN_SCORE`, `POSTS_PER_RUN`, `MAX_AGE_HOURS`, `REVIEW_LEVEL`, `SOURCE_CREDIT`, `DRY_RUN`. Biến nào để trống thì dùng giá trị mặc định.
+3. Chạy thử: **Actions → Autopost → Run workflow**. Ô *Dry run* được tick sẵn, nên lần này chỉ tạo ảnh, không đăng. Ảnh và bài viết nằm trong mục **Artifacts** của lần chạy, giữ 7 ngày.
+4. Khi đã hài lòng, để lịch tự chạy. Muốn tạm dừng thì đặt variable `DRY_RUN=true` hoặc **Disable workflow**.
+
+### Lưu ý
+- Trạng thái (tin đã xử lý, bài chờ duyệt, ảnh của bài chờ duyệt) được lưu ở nhánh **`autopost-state`**. Workflow tự tạo nhánh này ở lần chạy đầu. Đừng xoá nhánh này, nếu không bot sẽ quên các tin đã đăng.
+- Repo private có **2.000 phút Actions miễn phí mỗi tháng**. Với lịch mặc định, mỗi lần Autopost tốn khoảng 2 phút (khoảng 480 phút/tháng). Review decisions tốn 1 phút cho mỗi lần chạy (khoảng 720 phút/tháng). Tổng khoảng 1.200 phút/tháng. Nếu tăng tần suất thì nhớ tính lại.
+- GitHub có thể chạy lịch trễ 5–30 phút vào giờ cao điểm. Đây là chuyện bình thường.
+- Workflow dùng sẵn Chrome có trên máy của GitHub, nên không cần `npm run setup-browser`.
+- Đổi lịch chạy: sửa dòng `cron:` trong `.github/workflows/*.yml` (giờ UTC = giờ VN trừ 7).
+
+## Chạy trên máy chủ riêng (PC / VPS)
 
 Cần Node.js 20 trở lên.
 

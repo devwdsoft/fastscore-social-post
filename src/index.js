@@ -1,7 +1,7 @@
 import cron from 'node-cron';
-import { config, log, telegramEnabled } from './config.js';
+import { config, log } from './config.js';
 import { runOnce, handleDecision } from './run.js';
-import { startPolling } from './telegram.js';
+import { startPolling, processDecisionsOnce } from './telegram.js';
 
 let running = false;
 async function cycle() {
@@ -11,17 +11,23 @@ async function cycle() {
     await runOnce();
   } catch (e) {
     log('[cron] run failed', e.message);
+    process.exitCode = 1;
   } finally {
     running = false;
   }
 }
 
-if (process.argv.includes('--once')) {
+const arg = (a) => process.argv.includes(a);
+
+if (arg('--decisions')) {
+  // GitHub Actions: only act on Telegram Approve / Reject presses, then exit.
+  await processDecisionsOnce(handleDecision);
+} else if (arg('--once')) {
+  // GitHub Actions / manual: handle pending decisions, run one cycle, exit.
+  await processDecisionsOnce(handleDecision).catch((e) => log('[telegram]', e.message));
   await cycle();
-  if (!telegramEnabled()) process.exit(0);
-  log('Run finished. Keeping the Telegram review bot alive — press Ctrl+C to stop.');
-  startPolling(handleDecision);
 } else {
+  // Always-on server: built-in schedule + live Telegram polling.
   if (!cron.validate(config.cron)) throw new Error(`Invalid CRON_SCHEDULE: ${config.cron}`);
   cron.schedule(config.cron, cycle, { timezone: config.timezone });
   log(`Scheduled "${config.cron}" (${config.timezone})${config.dryRun ? ' — DRY RUN' : ''}`);
