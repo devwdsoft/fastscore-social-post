@@ -96,8 +96,10 @@ Tạo key tại platform.openai.com, rồi điền `OPENAI_API_KEY`. Model mặc
 ### Facebook Page
 Facebook chỉ cho đăng tự động lên **Page**, không đăng được lên trang cá nhân.
 
-1. Tạo app tại developers.facebook.com (loại Business).
-2. Vào Graph API Explorer, chọn app, xin quyền `pages_manage_posts`, `pages_read_engagement`, `pages_show_list`, rồi lấy User token.
+1. Vào developers.facebook.com → **My Apps → Create App**. Ở bước chọn use case, chọn **"Manage everything on your Page"**. Nếu đã có app thì vào **Dashboard → Add use case**.
+   App tạo với use case khác (ví dụ "Authenticate and request data from users with Facebook Login") sẽ báo `Invalid Scopes: pages_show_list...`. Quyền `manage_pages` cũ đã bị Facebook bỏ, không dùng nữa.
+2. Trong use case đó, bấm **Customize**, rồi **Add** các quyền `pages_manage_posts` và `pages_read_engagement`. Quyền `pages_show_list` có sẵn.
+   Sau đó mở **Tools → Graph API Explorer**, chọn app, mục *User or Page* chọn **Get User Access Token**, tick 3 quyền trên, bấm **Generate Access Token** và chọn Page Fast Score khi được hỏi.
 3. Đổi sang token dài hạn:
    `GET /oauth/access_token?grant_type=fb_exchange_token&client_id=APP_ID&client_secret=APP_SECRET&fb_exchange_token=USER_TOKEN`
 4. Gọi `GET /me/accounts` bằng token dài hạn đó, lấy `id` và `access_token` của Page Fast Score. Page token lấy theo cách này không hết hạn.
