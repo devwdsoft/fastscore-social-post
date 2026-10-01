@@ -10,34 +10,55 @@ Script Node.js chạy theo lịch (cron). Mỗi lần chạy, nó:
    - Mức nhạy cảm **thấp hơn** `REVIEW_LEVEL` (mặc định `high`): đăng thẳng lên Facebook Page và nhắn báo vào Telegram.
    - Mức nhạy cảm **≥** `REVIEW_LEVEL`: gửi ảnh và bài nháp vào Telegram kèm nút **✅ Approve & post** / **❌ Reject**. Bấm Approve thì bài mới được đăng.
 
-Mọi ảnh và bài viết được lưu ở `data/out/` (ảnh `.png` và file `.json` cùng tên). Trạng thái chạy nằm trong `data/state.json`.
+## Kiến trúc
 
-## Chạy trên GitHub Actions (khuyên dùng)
+| Ở đâu | Làm gì |
+|---|---|
+| **GitHub Actions** (`.github/workflows/autopost.yml`, 2 tiếng một lần) | Lấy tin, gọi OpenAI, tạo ảnh. Tin thường thì đăng thẳng lên Facebook. Tin nhạy cảm thì lưu vào MySQL qua API và gửi lên Telegram để duyệt |
+| **Hostinger** (`hostinger/`: PHP + MySQL) | API lưu dữ liệu (tin đã xử lý, lịch sử, bài chờ duyệt kèm ảnh). Webhook Telegram: bấm **Approve** là bài được đăng lên Facebook ngay trong vài giây |
 
-Không cần máy chủ. Repo đã có sẵn 2 workflow:
+MySQL chỉ nghe ở localhost của Hostinger, không mở ra internet. GitHub chỉ nói chuyện với API qua HTTPS kèm token. Repo có public thì người ta cũng chỉ thấy code, không thấy dữ liệu hay bài chờ duyệt.
 
-| Workflow | Lịch (giờ UTC) | Việc làm |
-|---|---|---|
-| `Autopost` | `7 */3 * * *`, 3 tiếng một lần (giờ VN: 07:07, 10:07, 13:07…) | Xử lý các nút duyệt đang chờ, rồi lấy tin, viết bài, tạo ảnh và đăng (hoặc gửi Telegram để duyệt) |
-| `Review decisions` | `37 * * * *`, mỗi giờ | Chỉ xử lý nút Approve / Reject trên Telegram. Nếu không có bài chờ duyệt thì dừng ngay |
+## Cài đặt phần Hostinger
 
-Bấm Approve trên Telegram thì bài được đăng trong vòng **khoảng 1 giờ** (ở lần chạy kế tiếp), không đăng ngay lập tức.
+1. **Database:** vào hPanel → Databases → phpMyAdmin, chọn database của bạn, mở tab **SQL** và dán nội dung `hostinger/schema.sql`, rồi bấm Go.
+2. **Upload code:** dùng File Manager để upload 4 file trong `hostinger/public/` (`index.php`, `telegram.php`, `lib.php`, `.htaccess`) vào thư mục web của subdomain (ví dụ `domains/api.domain-cua-ban.com/public_html/`).
+3. **File cấu hình:** copy `hostinger/fastscore-config.sample.php` thành `fastscore-config.php` và đặt ở **thư mục cha** của thư mục web (cùng cấp với `public_html`, không nằm trong nó), rồi điền:
+   - thông tin database;
+   - `api_token` và `telegram_webhook_secret`: hai chuỗi ngẫu nhiên dài, khác nhau (tạo ở https://www.random.org/strings hoặc bằng `php -r "echo bin2hex(random_bytes(32));"`);
+   - token Telegram và token Facebook Page.
+4. **SSL:** hPanel → Security → SSL, bật SSL cho subdomain.
+5. **Kiểm tra API** (thay domain và token):
+   ```bash
+   curl -H "Authorization: Bearer API_TOKEN" "https://api.domain-cua-ban.com/index.php?action=health"
+   # → {"ok":true,"pending":0}
+   ```
+6. **Bật webhook Telegram** (chạy 1 lần):
+   ```bash
+   curl -X POST -H "Authorization: Bearer API_TOKEN" "https://api.domain-cua-ban.com/index.php?action=set_webhook"
+   # → "telegram":{"ok":true,...}
+   ```
+Cần PHP 8.1 trở lên. hPanel → Advanced → PHP Configuration, thường mặc định đã là 8.2 hoặc 8.3.
 
-### Cài đặt
-1. Vào **Settings → Secrets and variables → Actions → Secrets** và thêm:
-   `OPENAI_API_KEY`, `FB_PAGE_ID`, `FB_PAGE_ACCESS_TOKEN`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`.
+## Cài đặt phần GitHub Actions
+
+1. Vào **Settings → Secrets and variables → Actions → Secrets**, thêm:
+   - `STATE_API_URL`: `https://api.domain-cua-ban.com/index.php`
+   - `STATE_API_TOKEN`: giống `api_token` trong file cấu hình
+   - `OPENAI_API_KEY`, `FB_PAGE_ID`, `FB_PAGE_ACCESS_TOKEN`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
 2. (Tuỳ chọn) Tab **Variables**: `OPENAI_MODEL`, `MIN_SCORE`, `POSTS_PER_RUN`, `MAX_AGE_HOURS`, `REVIEW_LEVEL`, `SOURCE_CREDIT`, `DRY_RUN`. Biến nào để trống thì dùng giá trị mặc định.
-3. Chạy thử: **Actions → Autopost → Run workflow**. Ô *Dry run* được tick sẵn, nên lần này chỉ tạo ảnh, không đăng. Ảnh và bài viết nằm trong mục **Artifacts** của lần chạy, giữ 7 ngày.
+3. Chạy thử: **Actions → Autopost → Run workflow**. Ô *Dry run* được tick sẵn: kết quả (ảnh và bài viết) được gửi vào Telegram của bạn để xem, **không đăng lên Facebook và không lưu gì**, nên chạy thử bao nhiêu lần cũng được.
 4. Khi đã hài lòng, để lịch tự chạy. Muốn tạm dừng thì đặt variable `DRY_RUN=true` hoặc **Disable workflow**.
 
 ### Lưu ý
-- Trạng thái (tin đã xử lý, bài chờ duyệt, ảnh của bài chờ duyệt) được lưu ở nhánh **`autopost-state`**. Workflow tự tạo nhánh này ở lần chạy đầu. Đừng xoá nhánh này, nếu không bot sẽ quên các tin đã đăng.
-- Repo private có **2.000 phút Actions miễn phí mỗi tháng**. Với lịch mặc định, mỗi lần Autopost tốn khoảng 2 phút (khoảng 480 phút/tháng). Review decisions tốn 1 phút cho mỗi lần chạy (khoảng 720 phút/tháng). Tổng khoảng 1.200 phút/tháng. Nếu tăng tần suất thì nhớ tính lại.
+- Lịch mặc định: `7 */2 * * *`, 2 tiếng một lần (giờ VN: 07:07, 09:07, 11:07…), tối đa 12 bài một ngày. Đổi lịch bằng cách sửa dòng `cron:` (giờ UTC = giờ VN trừ 7).
+- Repo **public** thì GitHub Actions miễn phí, không giới hạn phút. Repo private thì có 2.000 phút mỗi tháng; mỗi lần chạy tốn khoảng 2 phút, tức khoảng 720 phút/tháng.
+- Log chạy của repo public ai cũng xem được. Log chỉ ghi tiêu đề tin và kết quả, không ghi nội dung bài hay key. Các secret luôn hiện thành `***`.
 - GitHub có thể chạy lịch trễ 5–30 phút vào giờ cao điểm. Đây là chuyện bình thường.
-- Workflow dùng sẵn Chrome có trên máy của GitHub, nên không cần `npm run setup-browser`.
-- Đổi lịch chạy: sửa dòng `cron:` trong `.github/workflows/*.yml` (giờ UTC = giờ VN trừ 7).
 
 ## Chạy trên máy chủ riêng (PC / VPS)
+
+Không dùng Hostinger thì để trống `STATE_API_URL`: dữ liệu sẽ lưu ở `data/state.json`, ảnh ở `data/out/`, và script tự đọc nút duyệt Telegram (process phải chạy liên tục).
 
 Cần Node.js 20 trở lên.
 
@@ -87,8 +108,9 @@ Khi app còn ở chế độ Development, chỉ admin của app/Page mới đăn
 ### Telegram (duyệt bài)
 1. Nhắn cho @BotFather, gõ `/newbot`, lấy token rồi điền `TELEGRAM_BOT_TOKEN`.
 2. Nhắn một tin bất kỳ cho bot, sau đó mở `https://api.telegram.org/bot<TOKEN>/getUpdates` để lấy `chat.id`, rồi điền `TELEGRAM_CHAT_ID`. Muốn cả nhóm cùng duyệt thì thêm bot vào group và dùng id của group.
+   Làm bước này **trước** khi bật webhook (bước 6 phần Hostinger), vì khi đã bật webhook thì `getUpdates` không còn trả về gì.
 
-Nếu không cấu hình Telegram, bài nhạy cảm sẽ **bị giữ lại, không đăng**. File vẫn được lưu trong `data/out/`.
+Nếu không cấu hình Telegram, bài nhạy cảm sẽ **bị giữ lại, không đăng**.
 
 ## Tuỳ chỉnh
 

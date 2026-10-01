@@ -19,7 +19,7 @@ export async function sendForReview(p) {
   const form = new FormData();
   form.append('chat_id', config.telegram.chatId);
   form.append('photo', new Blob([p.png], { type: 'image/png' }), 'post.png');
-  form.append('caption', cut(`⚠️ NEEDS REVIEW — sensitivity: ${p.sensitivity.level.toUpperCase()}\n${p.sensitivity.reasons}\n\n${p.link}${config.reviewNote ? '\n\n' + config.reviewNote : ''}`, 1024));
+  form.append('caption', cut(`⚠️ NEEDS REVIEW — sensitivity: ${p.sensitivity.level.toUpperCase()}\n${p.sensitivity.reasons}\n\n${p.link}`, 1024));
   await api('sendPhoto', form);
   await api('sendMessage', {
     chat_id: config.telegram.chatId,
@@ -32,6 +32,17 @@ export async function sendForReview(p) {
       ]],
     },
   });
+}
+
+/** Dry run: show what would have been posted, without buttons. */
+export async function sendPreview(p) {
+  if (!telegramEnabled()) return;
+  const form = new FormData();
+  form.append('chat_id', config.telegram.chatId);
+  form.append('photo', new Blob([p.png], { type: 'image/png' }), 'post.png');
+  form.append('caption', cut(`🧪 DRY RUN — not posted\nsensitivity: ${p.sensitivity.level.toUpperCase()} → ${p.review ? 'would need review' : 'would auto-post'}\n${p.sensitivity.reasons}\n\n${p.link}`, 1024));
+  await api('sendPhoto', form);
+  await api('sendMessage', { chat_id: config.telegram.chatId, text: cut(p.caption, 4000), disable_web_page_preview: true });
 }
 
 export const notify = (text) =>

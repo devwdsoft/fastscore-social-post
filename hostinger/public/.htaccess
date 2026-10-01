@@ -1,0 +1,5 @@
+# Only index.php and telegram.php are reachable from the web.
+Options -Indexes
+<FilesMatch "^(lib\.php|config\.php|fastscore-config.*\.php|.*\.sql)$">
+  Require all denied
+</FilesMatch>

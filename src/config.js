@@ -27,6 +27,8 @@ export const config = {
     token: env('FB_PAGE_ACCESS_TOKEN'),
     version: env('FB_GRAPH_VERSION', 'v21.0'),
   },
+  // PHP + MySQL state API on Hostinger (leave empty to use data/state.json)
+  stateApi: { url: env('STATE_API_URL'), token: env('STATE_API_TOKEN') },
   telegram: {
     token: env('TELEGRAM_BOT_TOKEN'),
     chatId: env('TELEGRAM_CHAT_ID'),
@@ -47,8 +49,6 @@ export const config = {
   },
   sourceCredit: bool('SOURCE_CREDIT', true),
   dryRun: bool('DRY_RUN', false),
-  // Shown on Telegram review messages, e.g. how soon an approval is acted on
-  reviewNote: env('REVIEW_NOTE', ''),
   chromiumPath: env('CHROMIUM_PATH'),
   feeds: JSON.parse(fs.readFileSync(path.join(ROOT, 'config', 'feeds.json'), 'utf8')),
 };

@@ -1,14 +1,14 @@
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import crypto from 'node:crypto';
-import { config, log, needsReview, telegramEnabled, OUT_DIR, PENDING_DIR, DATA_DIR } from './config.js';
+import { config, log, needsReview, telegramEnabled, OUT_DIR } from './config.js';
 import { store } from './store.js';
 import { fetchCandidates } from './feeds.js';
 import { fetchArticle, downloadImage } from './article.js';
 import { selectStories, writePost } from './ai.js';
 import { renderCard } from './render.js';
 import { postPhoto, postUrl } from './facebook.js';
-import { sendForReview, notify } from './telegram.js';
+import { sendForReview, sendPreview, notify } from './telegram.js';
 
 function finalCaption(text, source) {
   let t = text.replace(/\*\*(.+?)\*\*/g, '$1').trim();
@@ -17,31 +17,25 @@ function finalCaption(text, source) {
   return t;
 }
 
-async function publish(p) {
-  if (config.dryRun) {
-    log(`[dry-run] would post: ${p.title} → ${p.pngFile}`);
-    return 'dry-run (not posted)';
-  }
-  const res = await postPhoto({ png: fs.readFileSync(path.resolve(DATA_DIR, p.pngFile)), caption: p.caption });
+async function publish(p, png) {
+  const res = await postPhoto({ png, caption: p.caption });
   const url = postUrl(res);
-  store.addHistory({ title: p.title, link: p.link, status: 'posted', fb: url });
+  await store.addHistory({ title: p.title, link: p.link, status: 'posted', fb: url });
   log(`[facebook] posted ${url}`);
   return url;
 }
 
-/** Approve / reject handler for Telegram buttons. */
+/** Approve / reject handler for the local Telegram polling mode (with the Hostinger API, telegram.php does this). */
 export async function handleDecision(action, id) {
   const p = store.getPending(id);
   if (!p) return 'This draft is no longer pending.';
   if (action === 'approve') {
-    const url = await publish(p); // throws on failure, so the draft stays pending
+    const url = config.dryRun ? 'dry-run (not posted)' : await publish(p, store.pendingImage(p)); // throws → stays pending
     store.removePending(id);
-    fs.rmSync(path.resolve(DATA_DIR, p.pngFile), { force: true });
     return `✅ Posted: ${url}`;
   }
   store.removePending(id);
-  fs.rmSync(path.resolve(DATA_DIR, p.pngFile), { force: true });
-  store.addHistory({ title: p.title, link: p.link, status: 'rejected' });
+  await store.addHistory({ title: p.title, link: p.link, status: 'rejected' });
   return `❌ Rejected: ${p.title}`;
 }
 
@@ -51,15 +45,16 @@ export async function runOnce() {
   const candidates = (await fetchCandidates()).slice(0, 60);
   if (!candidates.length) return log('[run] nothing new');
 
-  const picks = (await selectStories(candidates, store.recentTitles(), config.postsPerRun))
+  const picks = (await selectStories(candidates, await store.recentTitles(), config.postsPerRun))
     .filter((p) => p.score >= config.minScore)
     .slice(0, config.postsPerRun);
   if (!picks.length) return log('[run] no story scored high enough');
 
   for (const pick of picks) {
     const item = candidates[pick.index];
-    store.markSeen(item.link);
-    log(`[run] ${pick.score}/10 ${item.title} (${pick.reason})`);
+    // A dry run leaves no trace, so the same story can still be posted for real later.
+    if (!config.dryRun) await store.markSeen(item.link);
+    log(`[run] ${pick.score}/10 ${item.title}`);
     try {
       const article = await fetchArticle(item.link);
       const imageDataUri = await downloadImage(article.ogImage || item.imageUrl);
@@ -67,7 +62,7 @@ export async function runOnce() {
 
       const id = crypto.randomBytes(5).toString('hex');
       const pngFile = path.join(OUT_DIR, `${new Date().toISOString().slice(0, 10)}-${id}.png`);
-      await renderCard({ card: content.card, imageDataUri, outFile: pngFile });
+      const png = await renderCard({ card: content.card, imageDataUri, outFile: pngFile });
       const p = {
         id,
         title: item.title,
@@ -75,28 +70,30 @@ export async function runOnce() {
         source: item.source,
         caption: finalCaption(content.post_text, item.source),
         sensitivity: content.sensitivity,
-        pngFile,
       };
-      fs.writeFileSync(pngFile.replace(/\.png$/, '.json'), JSON.stringify({ ...p, card: content.card }, null, 2));
-      log(`[run] sensitivity=${p.sensitivity.level}: ${p.sensitivity.reasons}`);
+      if (!store.remote) fs.writeFileSync(pngFile.replace(/\.png$/, '.json'), JSON.stringify({ ...p, card: content.card }, null, 2));
+      const review = needsReview(p.sensitivity.level);
+      log(`[run] sensitivity=${p.sensitivity.level} → ${review ? 'review' : 'auto-post'}`);
 
-      if (needsReview(p.sensitivity.level)) {
+      if (config.dryRun) {
+        log('[dry-run] not posted');
+        await sendPreview({ ...p, png, review });
+      } else if (review) {
         if (!telegramEnabled()) {
-          log('[run] needs review but Telegram is not configured — held, not posted:', pngFile);
-          store.addHistory({ title: p.title, link: p.link, status: 'held' });
+          log('[run] needs review but Telegram is not configured — held, not posted');
+          await store.addHistory({ title: p.title, link: p.link, status: 'held' });
           continue;
         }
-        const pendingFile = path.join(PENDING_DIR, `${id}.png`);
-        fs.copyFileSync(pngFile, pendingFile);
-        store.addPending({ ...p, pngFile: path.relative(DATA_DIR, pendingFile) });
-        await sendForReview({ ...p, png: fs.readFileSync(pngFile) });
+        await store.addPending(p, png);
+        await sendForReview({ ...p, png });
         log('[run] sent to Telegram for review');
       } else {
-        const url = await publish(p);
+        const url = await publish(p, png);
         if (config.telegram.notifyPosted) await notify(`📣 Auto-posted (${p.sensitivity.level}): ${p.title}\n${url}`);
       }
     } catch (e) {
-      log('[run] failed for', item.link, e.stack || e.message);
+      log('[run] failed for', item.link, e.message);
+      process.exitCode = 1;
       await notify(`⚠️ Fast Score autopost error: ${e.message}\n${item.link}`);
     }
   }

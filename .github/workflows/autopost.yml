@@ -3,19 +3,19 @@ name: Autopost
 # Picks news, writes the post, renders the image and publishes (or sends to Telegram for review).
 on:
   schedule:
-    - cron: '7 */3 * * *' # every 3 hours (UTC), at minute 7
+    - cron: '7 */2 * * *' # every 2 hours (UTC), at minute 7
   workflow_dispatch:
     inputs:
       dry_run:
-        description: 'Dry run (render + save image, do not publish)'
+        description: 'Dry run (send the result to Telegram only, do not publish or save anything)'
         type: boolean
         default: true
 
 permissions:
-  contents: write # push the autopost-state branch
+  contents: read
 
 concurrency:
-  group: autopost-state
+  group: autopost
   cancel-in-progress: false
 
 jobs:
@@ -23,7 +23,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      STATE_API_URL: ${{ secrets.STATE_API_URL }}
+      STATE_API_TOKEN: ${{ secrets.STATE_API_TOKEN }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
       FB_PAGE_ACCESS_TOKEN: ${{ secrets.FB_PAGE_ACCESS_TOKEN }}
@@ -36,7 +37,6 @@ jobs:
       REVIEW_LEVEL: ${{ vars.REVIEW_LEVEL }}
       SOURCE_CREDIT: ${{ vars.SOURCE_CREDIT }}
       DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'true' || vars.DRY_RUN }}
-      REVIEW_NOTE: 'Approvals are picked up within about 1 hour.'
       # Use the Chrome that is preinstalled on GitHub's Ubuntu runners
       CHROMIUM_PATH: /usr/bin/google-chrome
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
@@ -47,14 +47,4 @@ jobs:
           node-version: 20
       - run: npm install --no-audit --no-fund
       - run: sudo apt-get install -y -qq fonts-liberation >/dev/null
-      - run: bash scripts/state.sh pull
       - run: node src/index.js --once
-      - if: always()
-        run: bash scripts/state.sh push
-      - if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: posts-${{ github.run_id }}
-          path: data/out/
-          retention-days: 7
-          if-no-files-found: ignore
