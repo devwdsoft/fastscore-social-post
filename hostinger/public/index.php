@@ -10,6 +10,7 @@ declare(strict_types=1);
 //   POST ?action=history_add     {"title","link","status","fb"}
 //   POST ?action=pending_add     {"id","title","link","source","caption","sensitivity":{"level","reasons"},"image_base64"}
 //   POST ?action=set_webhook     → points the Telegram bot at telegram.php on this host
+//   GET  ?action=fb_check        → shows who the configured Facebook token belongs to
 
 require __DIR__ . '/lib.php';
 
@@ -100,6 +101,22 @@ try {
                     $png,
                 ]);
             json_out(['ok' => true]);
+
+        case 'fb_check':
+            // Which account does fb_page_token belong to? It must be the Page itself, not a person.
+            $ver = $c['fb_graph_version'] ?? 'v21.0';
+            $ch = curl_init("https://graph.facebook.com/$ver/me?fields=id,name&access_token=" . urlencode((string) $c['fb_page_token']));
+            curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 20]);
+            $me = json_decode((string) curl_exec($ch), true) ?: [];
+            curl_close($ch);
+            $ok = isset($me['id']) && (string) $me['id'] === (string) $c['fb_page_id'];
+            json_out([
+                'ok' => $ok,
+                'token_belongs_to' => $me['error']['message'] ?? (($me['name'] ?? '?') . ' (id ' . ($me['id'] ?? '?') . ')'),
+                'configured_fb_page_id' => (string) $c['fb_page_id'],
+                'hint' => $ok ? 'Token is the Page token of fb_page_id — publishing should work.'
+                    : 'fb_page_token must be the access_token of the Page from GET me/accounts, and fb_page_id must be that Page id.',
+            ]);
 
         case 'set_webhook':
             $url = 'https://' . $_SERVER['HTTP_HOST'] . rtrim(dirname($_SERVER['SCRIPT_NAME']), '/') . '/telegram.php';
