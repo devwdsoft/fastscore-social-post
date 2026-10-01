@@ -18,8 +18,8 @@ function cfg(): array
         $candidates = [getenv('FASTSCORE_CONFIG') ?: ''];
         $dir = __DIR__;
         for ($i = 0; $i < 5; $i++) {
-            $candidates[] = $dir . '/social/fastscore-config.php';
-            $candidates[] = $dir . '/social/config.php';
+            $candidates[] = $dir . '/../../social/fastscore-config.php';
+            $candidates[] = $dir . '/../../social/config.php';
             $parent = dirname($dir);
             if ($parent === $dir) {
                 break;
