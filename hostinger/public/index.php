@@ -116,5 +116,19 @@ try {
     }
 } catch (Throwable $e) {
     error_log('[fastscore] ' . $e->getMessage());
+    // Only the health check returns the real reason (the caller is already authenticated),
+    // so normal calls never show database details in the public GitHub Actions log.
+    if ($action === 'health') {
+        $msg = $e->getMessage();
+        $hint = match (true) {
+            str_contains($msg, '1045') => 'wrong db_user or db_pass',
+            str_contains($msg, '1044'), str_contains($msg, '1049') => 'wrong db_name, or the user is not added to this database',
+            str_contains($msg, '2002'), str_contains($msg, '2005') => 'wrong db_host (on Hostinger it is usually "localhost")',
+            str_contains($msg, '1146') => 'tables missing: run hostinger/schema.sql in phpMyAdmin',
+            str_contains($msg, 'could not find driver') => 'pdo_mysql is disabled in PHP extensions',
+            default => 'see message',
+        };
+        json_out(['error' => 'server error', 'hint' => $hint, 'message' => $msg], 500);
+    }
     json_out(['error' => 'server error'], 500);
 }
